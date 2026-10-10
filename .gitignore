@@ -1,0 +1,19 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Vim swap, backup and undo files
+*.swp
+*.swo
+*~
+.*.un~
+
+# Temp files from tm's atomic writes, if a write is ever interrupted
+.*.tmp
+
+# OS clutter
+.DS_Store

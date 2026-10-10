@@ -1,0 +1,5 @@
+#!/bin/sh
+# Run tm from anywhere, including through a symlink on $PATH.
+self=$(readlink -f -- "$0" 2>/dev/null || printf '%s' "$0")
+root=$(cd -- "$(dirname -- "$self")/.." && pwd)
+PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m tm "$@"
