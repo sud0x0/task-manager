@@ -8,12 +8,28 @@ Standard library only, no dependencies. Written for Python 3.9+.
 
 ## Install
 
-```sh
-ln -s "$PWD/bin/tm" ~/.local/bin/tm   # ~/.local/bin must be on your PATH
-tm init                                # creates ~/tasks
-```
+1. Clone the repo into `~/.task-manager`:
 
-Set `TM_HOME` to keep the files somewhere other than `~/tasks`.
+   ```sh
+   git clone https://github.com/sud0x0/task-manager ~/.task-manager
+   ```
+
+2. Add these lines to `~/.zshrc` (or `~/.bashrc`). The first sets where your
+   tasks are stored; the second puts `tm` on your `PATH`:
+
+   ```sh
+   export TM_HOME="$HOME/tasks"
+   export PATH="$HOME/.task-manager/bin:$PATH"
+   ```
+
+3. Reload your shell and create the task folder:
+
+   ```sh
+   source ~/.zshrc
+   tm init
+   ```
+
+To update later, run `git -C ~/.task-manager pull`.
 
 ## File Structure
 
