@@ -1,6 +1,6 @@
 import unittest
 
-from tm.model import Goal, GoalsDoc, SubTodo, Task, normalize_person, slugify
+from tm.model import Goal, GoalsDoc, SubTodo, Task, delegates, normalize_person, people, slugify
 
 SAMPLE = """---
 id: 7
@@ -78,7 +78,7 @@ class TaskParseTests(unittest.TestCase):
         self.assertEqual(task.status, "doing")
         self.assertEqual(task.priority, "P1")
         self.assertEqual(task.goal, "ship-v1")
-        self.assertEqual(task.delegated_to, "@alice")
+        self.assertEqual(task.delegated_to, "alice")  # kept as written
         self.assertEqual(task.due, "2026-10-17")
         self.assertEqual(task.done_at, "")
 
@@ -331,3 +331,53 @@ class GoalPreservationTests(unittest.TestCase):
     def test_find_falls_back_to_the_slugified_input(self):
         doc = GoalsDoc.from_markdown("# Goals\n\n## Ship v1\n\nslug: ship-v1\n")
         self.assertIsNotNone(doc.find("Ship V1"))
+
+
+class MultipleDelegateTests(unittest.TestCase):
+    def test_a_trailing_run_of_handles_are_all_delegates(self):
+        for line, who in [
+            ("- [ ] Plan @x & @y", "@x & @y"),
+            ("- [ ] Plan @x, @y", "@x, @y"),
+            ("- [ ] Plan @x and @y", "@x and @y"),
+            ("- [ ] Plan @x @y", "@x @y"),
+        ]:
+            with self.subTest(line=line):
+                sub = SubTodo.parse(line)
+                self.assertEqual((sub.text, sub.delegated_to), ("Plan", who))
+                self.assertEqual(sub.to_line(), line)
+
+    def test_a_mention_mid_sentence_is_not_a_delegation(self):
+        sub = SubTodo.parse("- [ ] Call @bob about it")
+        self.assertEqual((sub.text, sub.delegated_to), ("Call @bob about it", ""))
+
+    def test_an_email_is_not_a_mention(self):
+        self.assertEqual(people("email me@x.com"), [])
+        self.assertEqual(SubTodo.parse("- [ ] email me@x.com").delegated_to, "")
+
+    def test_people_lists_every_handle(self):
+        self.assertEqual(people("@Alice & @bob, and @c.d"), ["@alice", "@bob", "@c.d"])
+        self.assertEqual(people("Ping @bob."), ["@bob"])
+
+    def test_normalize_adds_missing_sigils(self):
+        self.assertEqual(normalize_person("x & y"), "@x & @y")
+        self.assertEqual(normalize_person("alice, bob"), "@alice, @bob")
+        self.assertEqual(normalize_person("@alice and bob"), "@alice and @bob")
+
+
+class DelegatedToVerbatimTests(unittest.TestCase):
+    """Regression: reading delegated_to used to add @ to every word, and a
+    rewrite then saved that over what was typed."""
+
+    def test_a_hand_written_value_survives_a_rewrite(self):
+        text = "---\nid: 1\ntitle: x\ndelegated_to: Alice Smith (lead)\n---\n"
+        task = Task.from_markdown(text)
+        task.add_comment("rewrite", when="2026-10-12 09:00")
+        self.assertIn("delegated_to: Alice Smith (lead)\n", task.to_markdown())
+
+    def test_a_bare_name_still_counts_as_a_person(self):
+        self.assertEqual(delegates("alice"), ["@alice"])
+        self.assertEqual(delegates("alice & bob"), ["@alice", "@bob"])
+
+    def test_once_at_signs_are_used_only_handles_count(self):
+        self.assertEqual(delegates("@alice (lead)"), ["@alice"])
+        self.assertEqual(delegates(""), [])

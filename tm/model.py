@@ -36,7 +36,17 @@ _SUBTODO_ALIASES = {"sub todos", "sub todo", "subtodos", "subtodo", "todos", "ch
 _COMMENT_ALIASES = {"comments", "comment", "log"}
 
 _SUBTODO_RE = re.compile(r"^([ \t]*)[-*+][ \t]+\[([ xX])\][ \t]*(.*)$")
-_DELEGATE_RE = re.compile(r"[ \t]+@([^\s@]+)[ \t]*$")
+# A person is `@handle`. Not preceded by a word character, so an email
+# address is not a mention, and not ending in `.` or `-`, so a sentence can
+# end with one.
+_HANDLE = r"(?<![\w@])@[A-Za-z0-9_](?:[\w.-]*\w)?"
+PERSON_RE = re.compile(_HANDLE)
+# The delegates of a sub-todo: one or more handles at the end of the line,
+# joined by spaces, commas, `&` or `and`.
+_DELEGATES_RE = re.compile(
+    rf"[ \t]+({_HANDLE}(?:[ \t]*(?:,|&|\band\b)?[ \t]*{_HANDLE})*)[ \t]*$"
+)
+_BARE_NAME_RE = re.compile(r"(?<![\w@.-])([A-Za-z0-9_](?:[\w.-]*\w)?)")
 _COMMENT_RE = re.compile(r"^###[ \t]*(.*?)[ \t]*$")
 _SLUG_STRIP_RE = re.compile(r"[^a-z0-9]+")
 
@@ -51,10 +61,32 @@ def _canon_heading(heading: str) -> str:
     return heading.strip().lower().replace("-", " ").replace("_", " ")
 
 
-def normalize_person(name: str) -> str:
-    """People are written ``@name``; accept it with or without the sigil."""
-    name = name.strip()
-    return f"@{name.lstrip('@')}" if name else ""
+def normalize_person(text: str) -> str:
+    """People are written ``@name``; add the sigil wherever it was left off.
+
+    ``alice`` becomes ``@alice`` and ``alice & bob`` becomes ``@alice & @bob``.
+    The separators are kept as typed.
+    """
+    return _BARE_NAME_RE.sub(
+        lambda m: m.group(1) if m.group(1).lower() == "and" else f"@{m.group(1)}", text.strip()
+    )
+
+
+def people(text: str) -> list[str]:
+    """Every ``@handle`` in ``text``, lowercased, for matching."""
+    return [handle.lower() for handle in PERSON_RE.findall(text)]
+
+
+def delegates(field_value: str) -> list[str]:
+    """The people a ``delegated_to`` value names, for matching.
+
+    The value is kept exactly as written, so a hand-typed ``alice`` with no
+    ``@`` is read as the person ``@alice``. Once any ``@`` is used, only the
+    ``@handles`` count.
+    """
+    if "@" in field_value:
+        return people(field_value)
+    return people(normalize_person(field_value))
 
 
 def _split_fields(fields: dict[str, str], known: tuple[str, ...]) -> tuple[dict[str, str], dict[str, str]]:
@@ -82,13 +114,13 @@ class SubTodo:
         if not match:
             return None
         text = match.group(3).strip()
-        delegate = _DELEGATE_RE.search(text)
-        if delegate:
-            text = text[: delegate.start()].strip()
+        delegates = _DELEGATES_RE.search(text)
+        if delegates:
+            text = text[: delegates.start()].strip()
         return cls(
             text=text,
             done=match.group(2).lower() == "x",
-            delegated_to=normalize_person(delegate.group(1)) if delegate else "",
+            delegated_to=delegates.group(1) if delegates else "",
             depth=len(match.group(1).expandtabs(4)) // 2,
         )
 
@@ -150,7 +182,7 @@ class Task:
         task.status = known.get("status", "").strip().lower() or DEFAULT_STATUS
         task.priority = known.get("priority", "").strip().upper() or DEFAULT_PRIORITY
         task.goal = known.get("goal", "").strip()
-        task.delegated_to = normalize_person(known.get("delegated_to", ""))
+        task.delegated_to = known.get("delegated_to", "").strip()  # as written; see delegates()
         for name in DATE_FIELDS:
             setattr(task, name, known.get(name, "").strip())
 

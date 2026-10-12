@@ -7,7 +7,7 @@ import sys
 from typing import TextIO
 
 from . import dates
-from .model import Goal, GoalsDoc, Task
+from .model import PERSON_RE, Goal, GoalsDoc, SubTodo, Task
 
 _CODES = {
     "reset": "\033[0m",
@@ -60,6 +60,12 @@ class Theme:
     def due(self, value: str) -> str:
         return self(value, *due_styles(value))
 
+    def people(self, text: str) -> str:
+        """Color every ``@handle`` in ``text``, leaving the rest alone."""
+        if not self.enabled:
+            return text
+        return PERSON_RE.sub(lambda m: self(m.group(0), "magenta"), text)
+
 
 def due_styles(value: str) -> tuple[str, ...]:
     if not value:
@@ -82,8 +88,18 @@ def _progress(task: Task) -> str:
     return f"{sum(1 for s in task.subtodos if s.done)}/{len(task.subtodos)}"
 
 
-def task_table(tasks: list[Task], theme: Theme, *, show_goal: bool = True) -> str:
-    """The `tm list` table: fixed columns, title last so it can run long."""
+def task_table(
+    tasks: list[Task],
+    theme: Theme,
+    *,
+    show_goal: bool = True,
+    subtodos: dict[int, list[SubTodo]] | None = None,
+) -> str:
+    """The `tm list` table: fixed columns, title last so it can run long.
+
+    ``subtodos`` maps a task id to sub-todos to print under its row, lined up
+    with the title column.
+    """
     if not tasks:
         return ""
     headers = ["ID", "PRI", "STATUS", "DUE", "SUB"]
@@ -106,15 +122,25 @@ def task_table(tasks: list[Task], theme: Theme, *, show_goal: bool = True) -> st
         "PRI": lambda value: _PRIORITY_STYLE.get(value, ()),
         "STATUS": lambda value: _STATUS_STYLE.get(value, ()),
         "DUE": due_styles,
-        "WHO": lambda value: ("magenta",) if value else (),
     }
-    for row in rows:
+    title_column = " " * (sum(widths[:-1]) + 2 * (len(widths) - 1))
+    for task, row in zip(tasks, rows):
         cells = [
-            _cell(theme, value, width, styles_for.get(header, lambda _: ())(value), right=header == "ID")
+            theme.people(value.ljust(width))
+            if header == "WHO"
+            else _cell(theme, value, width, styles_for.get(header, lambda _: ())(value), right=header == "ID")
             for header, value, width in zip(headers, row, widths)
         ]
         lines.append("  ".join(cells).rstrip())
+        for sub in (subtodos or {}).get(task.id, []):
+            lines.append(f"{title_column}{'  ' * sub.depth}{_subtodo_line(sub, theme)}")
     return "\n".join(lines)
+
+
+def _subtodo_line(sub: SubTodo, theme: Theme) -> str:
+    box = theme("[x]", "green") if sub.done else "[ ]"
+    who = f" {sub.delegated_to}" if sub.delegated_to else ""
+    return f"{box} {theme.people(sub.text + who)}"
 
 
 def task_detail(task: Task, theme: Theme, *, goal: Goal | None = None) -> str:
@@ -124,7 +150,7 @@ def task_detail(task: Task, theme: Theme, *, goal: Goal | None = None) -> str:
         ("status", theme.status(task.status)),
         ("priority", theme.priority(task.priority)),
         ("goal", f"{task.goal} ({goal.title})" if goal else task.goal),
-        ("delegated to", task.delegated_to),
+        ("delegated to", theme.people(task.delegated_to)),
         ("start", task.start),
         ("due", theme.due(task.due) + _due_hint(task)),
         ("done at", task.done_at),
@@ -142,9 +168,7 @@ def task_detail(task: Task, theme: Theme, *, goal: Goal | None = None) -> str:
     if task.subtodos:
         out += ["", theme(f"Sub-todos ({_progress(task)})", "bold")]
         for sub in task.subtodos:
-            box = theme("[x]", "green") if sub.done else "[ ]"
-            who = f" {theme(sub.delegated_to, 'magenta')}" if sub.delegated_to else ""
-            out.append(f"  {'  ' * sub.depth}{box} {sub.text}{who}")
+            out.append(f"  {'  ' * sub.depth}{_subtodo_line(sub, theme)}")
     if task.comments:
         out += ["", theme("Comments", "bold")]
         for comment in task.comments:

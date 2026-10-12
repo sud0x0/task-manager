@@ -75,6 +75,8 @@ Blocked on ops access.
 - dates are `YYYY-MM-DD`; `done_at` is filled in by `tm done`
 - **Sub-todos must be checkboxes:** `- [ ] open`, `- [x] done`, `- [ ] task @who`.
   Indent two spaces to nest. A plain `- task` bullet is not a sub-todo.
+- **Delegating to several people:** `@x & @y`, `@x, @y` or `@x and @y`, in
+  `delegated_to` or in a sub-todo.
 
 A goal in `goals.md`:
 
@@ -96,12 +98,17 @@ fully parse a file, it refuses to rewrite it and tells you which line to fix.
 ## Commands
 
 ```sh
+tm goal add "Ship v1" --slug ship-v1
+tm goal list
+tm goal show ship-v1
+
 tm add "Rewrite the deploy script" -p 1 -g ship-v1 --due +7d
 tm add                          # no title: write the task in $EDITOR
 
 tm list                         # open tasks, highest priority first
 tm list --all                   # include done and cancelled
-tm list -g ship-v1 -p P1        # filter by goal, priority, -s status, -d @who
+tm list -g ship-v1 -p P1        # filter by goal, priority, or -s status
+tm list -d bob                  # everything mentioning @bob, with their sub-todos
 tm list --overdue               # also --today, --sort due|id|title|goal
 
 tm show 1
@@ -110,11 +117,7 @@ tm comment 1 "Blocked on ops access."
 tm done 1
 tm status 1 blocked             # task number, then the new status
 
-tm goal add "Ship v1" --slug ship-v1
-tm goal list
-tm goal show ship-v1
 tm goal set-status ship-v1 achieved
-
 tm check                        # validate every file
 ```
 

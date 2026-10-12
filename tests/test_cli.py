@@ -626,3 +626,70 @@ class GoalConsistencyTests(CliCase):
         lines = [l for l in err.splitlines() if "0099-cafe.md" in l]
         self.assertEqual(len(lines), 1)
         self.assertIn("UTF-8", lines[0])
+
+
+class MultipleDelegateCliTests(CliCase):
+    def setUp(self):
+        super().setUp()
+        self.run_cli(["add", "Shared task", "-d", "x & y"])
+        self.run_cli(["add", "Solo task"])
+        path = self.root / "tasks" / "0002-solo-task.md"
+        path.write_text(path.read_text() + "\n## Sub-todos\n\n- [ ] Pair on it @p & @q\n- [ ] Call @r about it\n")
+
+    def test_add_normalizes_every_name(self):
+        self.assertIn("delegated_to: @x & @y", (self.root / "tasks" / "0001-shared-task.md").read_text())
+
+    def test_filter_matches_any_delegate(self):
+        for who, expected in [("x", "Shared"), ("@y", "Shared"), ("q", "Solo"), ("p", "Solo")]:
+            with self.subTest(who=who):
+                _, out, _ = self.run_cli(["list", "-d", who])
+                self.assertIn(expected, out)
+
+    def test_filter_finds_a_mid_sentence_mention(self):
+        _, out, _ = self.run_cli(["list", "-d", "r"])
+        self.assertIn("Solo task", out)
+        self.assertIn("[ ] Call @r about it", out)
+
+    def test_filter_shows_only_that_persons_subtodos(self):
+        _, out, _ = self.run_cli(["list", "-d", "q"])
+        self.assertIn("[ ] Pair on it @p & @q", out)
+        self.assertNotIn("Call @r", out)
+
+    def test_subtodos_line_up_with_the_title_column(self):
+        _, out, _ = self.run_cli(["list", "-d", "p"])
+        header, row, sub = out.splitlines()[:3]
+        self.assertEqual(sub.index("[ ]"), header.index("TITLE"))
+        self.assertEqual(row.index("Solo task"), header.index("TITLE"))
+
+    def test_without_a_delegate_filter_no_subtodos_are_listed(self):
+        _, out, _ = self.run_cli(["list"])
+        self.assertNotIn("[ ]", out)
+
+    def test_task_level_delegate_without_subtodos_still_listed(self):
+        _, out, _ = self.run_cli(["list", "-d", "x"])
+        self.assertIn("Shared task", out)
+        self.assertEqual(len(out.strip().splitlines()), 2)
+
+    def test_every_handle_is_highlighted(self):
+        from tm import render
+        from tm.store import Store
+
+        theme = render.Theme(True)
+        magenta = "\033[35m"
+        detail = render.task_detail(Store(self.root).load_task(2), theme)
+        for handle in ("@p", "@q", "@r"):
+            self.assertIn(f"{magenta}{handle}\033[0m", detail)
+        table = render.task_table([Store(self.root).load_task(1)], theme)
+        for handle in ("@x", "@y"):
+            self.assertIn(f"{magenta}{handle}\033[0m", table)
+
+
+class BareDelegateCliTests(CliCase):
+    def test_list_finds_a_hand_written_bare_name(self):
+        self.run_cli(["add", "Handwritten"])
+        path = self.root / "tasks" / "0001-handwritten.md"
+        path.write_text(path.read_text().replace("delegated_to:", "delegated_to: alice"))
+        _, out, _ = self.run_cli(["list", "-d", "alice"])
+        self.assertIn("Handwritten", out)
+        self.run_cli(["done", "1"])
+        self.assertIn("delegated_to: alice\n", path.read_text())

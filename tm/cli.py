@@ -21,7 +21,9 @@ from .model import (
     PRIORITIES,
     STATUSES,
     Task,
+    delegates,
     normalize_person,
+    people,
 )
 from .store import Store, StoreError, read_text
 
@@ -302,14 +304,16 @@ def cmd_list(args, ctx: Ctx) -> int:
     if args.priority:
         priorities = [p.upper() for p in _flatten(args.priority)]
         tasks = [t for t in tasks if t.priority in priorities]
+    theirs: dict[int, list] = {}
     if args.delegate:
-        who = args.delegate.lstrip("@").lower()
-        tasks = [
-            t
-            for t in tasks
-            if t.delegated_to.lstrip("@").lower() == who
-            or any(s.delegated_to.lstrip("@").lower() == who for s in t.subtodos)
-        ]
+        # Every @mention counts: the task's delegated_to, and anywhere in a
+        # sub-todo line. Their sub-todos are shown under each task.
+        who = f"@{args.delegate.strip().lstrip('@').lower()}"
+        for task in tasks:
+            subs = [s for s in task.subtodos if who in people(f"{s.text} {s.delegated_to}")]
+            if subs:
+                theirs[task.id] = subs
+        tasks = [t for t in tasks if who in delegates(t.delegated_to) or t.id in theirs]
     if args.overdue:
         tasks = [t for t in tasks if t.is_open and dates.is_overdue(t.due)]
     if args.today:
@@ -317,7 +321,7 @@ def cmd_list(args, ctx: Ctx) -> int:
 
     if tasks:
         tasks.sort(key=_sort_key(args.sort))
-        ctx.say(render.task_table(tasks, ctx.theme, show_goal=not args.goal))
+        ctx.say(render.task_table(tasks, ctx.theme, show_goal=not args.goal, subtodos=theirs))
     else:
         ctx.warn("No tasks match.")
     if broken:
@@ -502,7 +506,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_argument("title", nargs="*", help="task title")
     sub.add_argument("-p", "--priority", default="P2", type=_priority, help="P1, P2 or P3")
     sub.add_argument("-g", "--goal", help="goal slug")
-    sub.add_argument("-d", "--delegate", help="person, as @name")
+    sub.add_argument("-d", "--delegate", help='person, as @name; several as "@x & @y"')
     sub.add_argument("-s", "--status", choices=STATUSES, help="initial status")
     sub.add_argument("--start", help="start date (ISO, today, +3d, fri, ...)")
     sub.add_argument("--due", help="due date (ISO, today, +3d, fri, ...)")
@@ -512,7 +516,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_argument("-s", "--status", action="append", help="status filter, repeatable or comma-separated")
     sub.add_argument("-g", "--goal", help="only this goal")
     sub.add_argument("-p", "--priority", action="append", help="priority filter")
-    sub.add_argument("-d", "--delegate", help="tasks or sub-todos delegated to this person")
+    sub.add_argument("-d", "--delegate", help="everything mentioning @person, with their sub-todos")
     sub.add_argument("-a", "--all", action="store_true", help="include done and cancelled")
     sub.add_argument("--overdue", action="store_true", help="only open tasks past their due date")
     sub.add_argument("--today", action="store_true", help="due today or overdue")
