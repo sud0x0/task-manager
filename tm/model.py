@@ -35,7 +35,8 @@ COMMENTS_HEADING = "Comments"
 _SUBTODO_ALIASES = {"sub todos", "sub todo", "subtodos", "subtodo", "todos", "checklist"}
 _COMMENT_ALIASES = {"comments", "comment", "log"}
 
-_SUBTODO_RE = re.compile(r"^([ \t]*)[-*+][ \t]+\[([ xX])\][ \t]*(.*)$")
+# `- [ ] text`, tolerant of spacing: `-  [  ]`, `[ x ]` and `[]` all count.
+_SUBTODO_RE = re.compile(r"^([ \t]*)[-*+][ \t]+\[[ \t]*([xX]?)[ \t]*\][ \t]*(.*)$")
 # A person is `@handle`. Not preceded by a word character, so an email
 # address is not a mention, and not ending in `.` or `-`, so a sentence can
 # end with one.
@@ -47,6 +48,9 @@ _DELEGATES_RE = re.compile(
     rf"[ \t]+({_HANDLE}(?:[ \t]*(?:,|&|\band\b)?[ \t]*{_HANDLE})*)[ \t]*$"
 )
 _BARE_NAME_RE = re.compile(r"(?<![\w@.-])([A-Za-z0-9_](?:[\w.-]*\w)?)")
+# Sub-todo markers, anywhere in the line: `+P1` (or `+1`) and `%2026-10-20`.
+_SUB_PRIORITY_RE = re.compile(r"(?<!\S)\+[Pp]?(\d+)(?!\S)")
+_SUB_DUE_RE = re.compile(r"(?<!\S)%(\S+)")
 _COMMENT_RE = re.compile(r"^###[ \t]*(.*?)[ \t]*$")
 _SLUG_STRIP_RE = re.compile(r"[^a-z0-9]+")
 
@@ -75,6 +79,35 @@ def normalize_person(text: str) -> str:
 def people(text: str) -> list[str]:
     """Every ``@handle`` in ``text``, lowercased, for matching."""
     return [handle.lower() for handle in PERSON_RE.findall(text)]
+
+
+def _take(regex: re.Pattern, text: str) -> tuple[str, str]:
+    """Pull the first match of ``regex`` out of ``text``: (its value, the rest)."""
+    match = regex.search(text)
+    if not match:
+        return "", text
+    rest = f"{text[: match.start()].rstrip()} {text[match.end():].lstrip()}".strip()
+    return match.group(1), rest
+
+
+def with_parents(subtodos: list["SubTodo"], matches) -> list[tuple["SubTodo", bool]]:
+    """The sub-todos ``matches`` picks, plus every parent above them.
+
+    Returns ``(sub-todo, matched)`` pairs in file order. A parent that is only
+    there for context comes back with ``matched`` False. Parents are found by
+    indentation, so any indent width works.
+    """
+    keep: set[int] = set()
+    matched: set[int] = set()
+    chain: list[int] = []  # the open line of ancestors, outermost first
+    for index, sub in enumerate(subtodos):
+        while chain and subtodos[chain[-1]].depth >= sub.depth:
+            chain.pop()
+        if matches(sub):
+            matched.add(index)
+            keep.update(chain, [index])
+        chain.append(index)
+    return [(sub, index in matched) for index, sub in enumerate(subtodos) if index in keep]
 
 
 def delegates(field_value: str) -> list[str]:
@@ -107,13 +140,17 @@ class SubTodo:
     done: bool = False
     delegated_to: str = ""
     depth: int = 0
+    priority: str = ""
+    due: str = ""
 
     @classmethod
     def parse(cls, line: str) -> "SubTodo | None":
+        """``- [ ] text +P1 %2026-10-20 @who``; the markers in any order."""
         match = _SUBTODO_RE.match(line)
         if not match:
             return None
-        text = match.group(3).strip()
+        priority, text = _take(_SUB_PRIORITY_RE, match.group(3).strip())
+        due, text = _take(_SUB_DUE_RE, text)
         delegates = _DELEGATES_RE.search(text)
         if delegates:
             text = text[: delegates.start()].strip()
@@ -122,12 +159,27 @@ class SubTodo:
             done=match.group(2).lower() == "x",
             delegated_to=delegates.group(1) if delegates else "",
             depth=len(match.group(1).expandtabs(4)) // 2,
+            priority=f"P{priority}" if priority else "",
+            due=due,
         )
 
     def to_line(self) -> str:
         box = "x" if self.done else " "
-        suffix = f" {self.delegated_to}" if self.delegated_to else ""
-        return f"{'  ' * self.depth}- [{box}] {self.text}{suffix}"
+        parts = [
+            self.text,
+            f"+{self.priority}" if self.priority else "",
+            f"%{self.due}" if self.due else "",
+            self.delegated_to,
+        ]
+        return f"{'  ' * self.depth}- [{box}] {' '.join(p for p in parts if p)}"
+
+    def problems(self) -> list[str]:
+        out = []
+        if self.priority and self.priority not in PRIORITIES:
+            out.append(f"sub-todo {self.text!r}: +{self.priority} is not one of +P1/+P2/+P3")
+        if self.due and dates.to_date(self.due) is None:
+            out.append(f"sub-todo {self.text!r}: %{self.due} is not an ISO date (YYYY-MM-DD)")
+        return out
 
 
 @dataclass
@@ -314,6 +366,27 @@ class Task:
         self._comments_seen = True
         return comment
 
+    def resolve_subtodo_dates(self, resolve) -> None:
+        """Turn relative ``%dates`` on sub-todo lines (``%fri``) into ISO.
+
+        Edits the section text in place, so nothing else in it changes. A date
+        ``resolve`` rejects is left alone for :meth:`validate` to report.
+        """
+        if self._subtodos_raw is None:
+            return
+
+        def fix(match: re.Match) -> str:
+            try:
+                return f"%{resolve(match.group(1))}"
+            except ValueError:
+                return match.group(0)
+
+        self._subtodos_raw = "\n".join(
+            _SUB_DUE_RE.sub(fix, line, count=1) if _SUBTODO_RE.match(line) else line
+            for line in self._subtodos_raw.splitlines()
+        )
+        self.subtodos = self._parse_subtodos(self._subtodos_raw)
+
     def set_status(self, status: str, *, when: str = "") -> None:
         self.status = status
         if status == "done":
@@ -343,6 +416,8 @@ class Task:
             problems.append("status is done but done_at is empty")
         if self.status != "done" and self.done_at:
             problems.append(f"done_at is set but status is {self.status!r}")
+        for sub in self.subtodos:
+            problems.extend(sub.problems())
         return problems
 
 

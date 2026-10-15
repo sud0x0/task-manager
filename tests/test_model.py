@@ -1,6 +1,6 @@
 import unittest
 
-from tm.model import Goal, GoalsDoc, SubTodo, Task, delegates, normalize_person, people, slugify
+from tm.model import Goal, GoalsDoc, SubTodo, Task, delegates, normalize_person, people, slugify, with_parents
 
 SAMPLE = """---
 id: 7
@@ -381,3 +381,107 @@ class DelegatedToVerbatimTests(unittest.TestCase):
     def test_once_at_signs_are_used_only_handles_count(self):
         self.assertEqual(delegates("@alice (lead)"), ["@alice"])
         self.assertEqual(delegates(""), [])
+
+
+class SubTodoMarkerTests(unittest.TestCase):
+    def test_priority_date_and_people(self):
+        sub = SubTodo.parse("- [ ] Draft the plan +P1 %2026-10-20 @bob")
+        self.assertEqual(
+            (sub.text, sub.priority, sub.due, sub.delegated_to), ("Draft the plan", "P1", "2026-10-20", "@bob")
+        )
+
+    def test_markers_in_any_order(self):
+        sub = SubTodo.parse("- [ ] +2 Draft @bob & @carol %2026-10-20")
+        self.assertEqual((sub.text, sub.priority, sub.due, sub.delegated_to), ("Draft", "P2", "2026-10-20", "@bob & @carol"))
+
+    def test_lowercase_and_bare_number_priorities(self):
+        self.assertEqual(SubTodo.parse("- [ ] a +p3").priority, "P3")
+        self.assertEqual(SubTodo.parse("- [ ] a +1").priority, "P1")
+
+    def test_a_percentage_is_not_a_date(self):
+        sub = SubTodo.parse("- [ ] Grew 50% this week")
+        self.assertEqual((sub.text, sub.due), ("Grew 50% this week", ""))
+
+    def test_bad_markers_are_problems(self):
+        problems = SubTodo.parse("- [ ] Bad +P9 %soon").problems()
+        self.assertEqual(len(problems), 2)
+        task = Task(id=1, title="x", subtodos=[SubTodo.parse("- [ ] Bad %soon")])
+        self.assertTrue(any("%soon" in p for p in task.validate()))
+
+    def test_to_line_round_trips(self):
+        line = "- [ ] Draft +P1 %2026-10-20 @bob & @carol"
+        self.assertEqual(SubTodo.parse(line).to_line(), line)
+
+    def test_a_rewrite_keeps_the_marker_order_as_written(self):
+        text = "---\nid: 1\ntitle: x\n---\n\n## Sub-todos\n\n- [ ] %2026-10-20 Draft +1 @bob\n"
+        task = Task.from_markdown(text)
+        task.add_comment("rewrite", when="2026-10-15 09:00")
+        self.assertIn("- [ ] %2026-10-20 Draft +1 @bob", task.to_markdown())
+
+    def test_relative_dates_resolve_in_place(self):
+        text = "---\nid: 1\ntitle: x\n---\n\n## Sub-todos\n\nNote first.\n\n- [ ] A %2026-01-02\n- [ ] B %tomorrow @bob\n- [ ] C %soon\n"
+        known = {"tomorrow": "2026-10-16", "2026-01-02": "2026-01-02"}
+
+        def resolve(value):
+            if value not in known:
+                raise ValueError(value)
+            return known[value]
+
+        task = Task.from_markdown(text)
+        task.resolve_subtodo_dates(resolve)
+        out = task.to_markdown()
+        self.assertIn("Note first.", out)
+        self.assertIn("- [ ] B %2026-10-16 @bob", out)
+        self.assertIn("- [ ] C %soon", out)
+
+
+class LooseCheckboxTests(unittest.TestCase):
+    def test_extra_spaces_around_and_inside_the_box(self):
+        for line, done in [("-  [  ] sub task", False), ("- [ x ] done", True), ("- [] bare", False), ("- [X]tight", True)]:
+            with self.subTest(line=line):
+                sub = SubTodo.parse(line)
+                self.assertIsNotNone(sub)
+                self.assertEqual(sub.done, done)
+
+    def test_a_four_space_indent_is_nesting(self):
+        self.assertEqual(SubTodo.parse("    - [  ] sub sub task @x").depth, 2)
+
+    def test_a_link_is_not_a_checkbox(self):
+        self.assertIsNone(SubTodo.parse("- [link](https://example.com)"))
+
+
+class WithParentsTests(unittest.TestCase):
+    def parse(self, *lines):
+        return [SubTodo.parse(line) for line in lines]
+
+    def picked(self, subs, who):
+        return [(s.text, matched) for s, matched in with_parents(subs, lambda s: who in s.delegated_to)]
+
+    def test_the_users_example(self):
+        subs = self.parse("-  [  ] sub task", "    - [  ] sub sub task @x")
+        self.assertEqual(self.picked(subs, "@x"), [("sub task", False), ("sub sub task", True)])
+
+    def test_every_level_up_to_the_top(self):
+        subs = self.parse("- [ ] a", "  - [ ] b", "    - [ ] c @x", "- [ ] d @x")
+        self.assertEqual(self.picked(subs, "@x"), [("a", False), ("b", False), ("c", True), ("d", True)])
+
+    def test_siblings_and_their_children_stay_out(self):
+        subs = self.parse("- [ ] a", "  - [ ] b @y", "    - [ ] b1", "  - [ ] c @x", "- [ ] e")
+        self.assertEqual(self.picked(subs, "@x"), [("a", False), ("c", True)])
+
+    def test_a_shared_parent_appears_once(self):
+        subs = self.parse("- [ ] a", "  - [ ] b @x", "  - [ ] c @x")
+        self.assertEqual(self.picked(subs, "@x"), [("a", False), ("b", True), ("c", True)])
+
+    def test_a_parent_that_matches_is_not_context(self):
+        subs = self.parse("- [ ] a @x", "  - [ ] b @x")
+        self.assertEqual(self.picked(subs, "@x"), [("a", True), ("b", True)])
+
+    def test_uneven_indentation(self):
+        subs = self.parse("- [ ] a", "      - [ ] deep @x", "  - [ ] shallower", "    - [ ] in between @x")
+        self.assertEqual(
+            self.picked(subs, "@x"), [("a", False), ("deep", True), ("shallower", False), ("in between", True)]
+        )
+
+    def test_no_match_no_rows(self):
+        self.assertEqual(self.picked(self.parse("- [ ] a", "  - [ ] b"), "@x"), [])

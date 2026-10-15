@@ -24,6 +24,7 @@ from .model import (
     delegates,
     normalize_person,
     people,
+    with_parents,
 )
 from .store import Store, StoreError, read_text
 
@@ -46,7 +47,7 @@ done_at:
 
 ## Sub-todos
 
-<!-- One checkbox per line: "- [ ] text", "- [x] done", "- [ ] text @who". A plain "- text" bullet is not a sub-todo. -->
+<!-- One checkbox per line: "- [ ] text +P1 %fri @who", "- [x] done". +priority, %target date and @people are optional. A plain "- text" bullet is not a sub-todo. -->
 
 ## Comments
 """
@@ -284,6 +285,7 @@ def _finish_draft(ctx: Ctx, task: Task) -> list[str]:
             pass  # validate() reports it
     if task.status == "done" and not task.done_at:
         task.done_at = dates.parse("today")
+    task.resolve_subtodo_dates(dates.parse)
     return [p for p in task.validate() if p != "missing id"] + _goal_problems(ctx, task, fix=True)
 
 
@@ -301,24 +303,24 @@ def cmd_list(args, ctx: Ctx) -> int:
     if args.goal:
         slug = _resolve_goal(ctx, args.goal)
         tasks = [t for t in tasks if t.goal == slug]
-    if args.priority:
-        priorities = [p.upper() for p in _flatten(args.priority)]
-        tasks = [t for t in tasks if t.priority in priorities]
+    # Delegate, priority and date filters look inside sub-todos too, at any
+    # depth. Each is a (task check, sub-todo check) pair. A task is listed if
+    # it passes every check itself, or if any of its sub-todos does; matching
+    # sub-todos are listed under it with the items they sit under.
+    checks = _row_checks(args)
     theirs: dict[int, list] = {}
-    if args.delegate:
-        # Every @mention counts: the task's delegated_to, and anywhere in a
-        # sub-todo line. Their sub-todos are shown under each task.
-        who = f"@{args.delegate.strip().lstrip('@').lower()}"
+    if checks:
+        kept = []
         for task in tasks:
-            subs = [s for s in task.subtodos if who in people(f"{s.text} {s.delegated_to}")]
+            subs = with_parents(task.subtodos, lambda s: all(sub_ok(s) for _, sub_ok in checks))
             if subs:
                 theirs[task.id] = subs
-        tasks = [t for t in tasks if who in delegates(t.delegated_to) or t.id in theirs]
-    if args.overdue:
-        tasks = [t for t in tasks if t.is_open and dates.is_overdue(t.due)]
-    if args.today:
-        tasks = [t for t in tasks if t.is_open and (dates.is_today(t.due) or dates.is_overdue(t.due))]
+            if subs or all(task_ok(task) for task_ok, _ in checks):
+                kept.append(task)
+        tasks = kept
 
+    if args.subs:
+        theirs = {t.id: [(s, True) for s in t.subtodos] for t in tasks if t.subtodos}
     if tasks:
         tasks.sort(key=_sort_key(args.sort))
         ctx.say(render.task_table(tasks, ctx.theme, show_goal=not args.goal, subtodos=theirs))
@@ -327,6 +329,33 @@ def cmd_list(args, ctx: Ctx) -> int:
     if broken:
         ctx.warn(f"warning: {len(broken)} task file(s) have problems; run 'tm check'")
     return 0
+
+
+def _row_checks(args) -> list[tuple]:
+    """The (task check, sub-todo check) pairs for the filters that apply to both.
+
+    A sub-todo never inherits a priority or date from its task: ``-p P1``
+    finds ``+P1`` sub-todos, not every sub-todo of a P1 task.
+    """
+    checks = []
+    if args.delegate:
+        who = f"@{args.delegate.strip().lstrip('@').lower()}"
+        checks.append(
+            (lambda t: who in delegates(t.delegated_to), lambda s: who in people(f"{s.text} {s.delegated_to}"))
+        )
+    if args.priority:
+        wanted = {p.upper() if p.upper().startswith("P") else f"P{p}" for p in _flatten(args.priority)}
+        checks.append((lambda t: t.priority in wanted, lambda s: s.priority in wanted))
+    if args.overdue:
+        checks.append(
+            (lambda t: t.is_open and dates.is_overdue(t.due), lambda s: not s.done and dates.is_overdue(s.due))
+        )
+    if args.today:
+        def due_soon(value: str) -> bool:
+            return dates.is_today(value) or dates.is_overdue(value)
+
+        checks.append((lambda t: t.is_open and due_soon(t.due), lambda s: not s.done and due_soon(s.due)))
+    return checks
 
 
 def cmd_show(args, ctx: Ctx) -> int:
@@ -515,12 +544,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub = command(subs, "list", "list tasks (open ones by default)", cmd_list)
     sub.add_argument("-s", "--status", action="append", help="status filter, repeatable or comma-separated")
     sub.add_argument("-g", "--goal", help="only this goal")
-    sub.add_argument("-p", "--priority", action="append", help="priority filter")
+    sub.add_argument("-p", "--priority", action="append", help="priority, on tasks or +P sub-todos")
     sub.add_argument("-d", "--delegate", help="everything mentioning @person, with their sub-todos")
     sub.add_argument("-a", "--all", action="store_true", help="include done and cancelled")
-    sub.add_argument("--overdue", action="store_true", help="only open tasks past their due date")
-    sub.add_argument("--today", action="store_true", help="due today or overdue")
+    sub.add_argument("--overdue", action="store_true", help="open tasks or sub-todos past their date")
+    sub.add_argument("--today", action="store_true", help="tasks or sub-todos due today or overdue")
     sub.add_argument("--sort", default="priority", choices=("priority", "due", "id", "title", "goal"))
+    sub.add_argument("--subs", action="store_true", help="show every sub-todo under its task")
 
     sub = command(subs, "show", "show one task in full", cmd_show)
     sub.add_argument("id", type=int)

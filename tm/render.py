@@ -93,12 +93,13 @@ def task_table(
     theme: Theme,
     *,
     show_goal: bool = True,
-    subtodos: dict[int, list[SubTodo]] | None = None,
+    subtodos: dict[int, list[tuple[SubTodo, bool]]] | None = None,
 ) -> str:
     """The `tm list` table: fixed columns, title last so it can run long.
 
-    ``subtodos`` maps a task id to sub-todos to print under its row, lined up
-    with the title column.
+    ``subtodos`` maps a task id to ``(sub-todo, matched)`` pairs to print
+    under its row, lined up with the title column. Unmatched ones are parents
+    shown for context, and are dimmed.
     """
     if not tasks:
         return ""
@@ -132,15 +133,22 @@ def task_table(
             for header, value, width in zip(headers, row, widths)
         ]
         lines.append("  ".join(cells).rstrip())
-        for sub in (subtodos or {}).get(task.id, []):
-            lines.append(f"{title_column}{'  ' * sub.depth}{_subtodo_line(sub, theme)}")
+        for sub, matched in (subtodos or {}).get(task.id, []):
+            line = _subtodo_line(sub, theme) if matched else theme(_subtodo_line(sub, Theme(False)), "dim")
+            lines.append(f"{title_column}{'  ' * sub.depth}{line}")
     return "\n".join(lines)
 
 
 def _subtodo_line(sub: SubTodo, theme: Theme) -> str:
     box = theme("[x]", "green") if sub.done else "[ ]"
-    who = f" {sub.delegated_to}" if sub.delegated_to else ""
-    return f"{box} {theme.people(sub.text + who)}"
+    parts = [theme.people(sub.text)] if sub.text else []
+    if sub.priority:
+        parts.append(theme(f"+{sub.priority}", *_PRIORITY_STYLE.get(sub.priority, ())))
+    if sub.due:
+        parts.append(theme(f"%{sub.due}", *(() if sub.done else due_styles(sub.due))))
+    if sub.delegated_to:
+        parts.append(theme.people(sub.delegated_to))
+    return f"{box} {' '.join(parts)}"
 
 
 def task_detail(task: Task, theme: Theme, *, goal: Goal | None = None) -> str:

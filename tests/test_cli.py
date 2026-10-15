@@ -693,3 +693,212 @@ class BareDelegateCliTests(CliCase):
         self.assertIn("Handwritten", out)
         self.run_cli(["done", "1"])
         self.assertIn("delegated_to: alice\n", path.read_text())
+
+
+class SubsViewTests(CliCase):
+    def setUp(self):
+        super().setUp()
+        self.run_cli(["add", "First task", "-p", "1"])
+        self.run_cli(["add", "No sub-todos"])
+        self.run_cli(["add", "Second task", "-d", "carol"])
+        path = self.root / "tasks" / "0001-first-task.md"
+        path.write_text(
+            path.read_text()
+            + "\n## Sub-todos\n\n- [x] Done one\n- [ ] Draft +P1 %2026-10-20 @bob\n  - [ ] Nested %2026-01-01\n"
+        )
+        path = self.root / "tasks" / "0003-second-task.md"
+        path.write_text(path.read_text() + "\n## Sub-todos\n\n- [ ] Only one @dan\n")
+
+    def test_subs_lists_every_task_and_every_subtodo(self):
+        _, out, _ = self.run_cli(["list", "--subs"])
+        for text in ("First task", "No sub-todos", "Second task", "[x] Done one",
+                     "[ ] Draft +P1 %2026-10-20 @bob", "[ ] Nested %2026-01-01", "[ ] Only one @dan"):
+            self.assertIn(text, out)
+
+    def test_subs_are_aligned_and_nested(self):
+        _, out, _ = self.run_cli(["list", "--subs", "--sort", "id"])
+        lines = out.splitlines()
+        title = lines[0].index("TITLE")
+        self.assertEqual(next(l for l in lines if "Done one" in l).index("["), title)
+        self.assertEqual(next(l for l in lines if "Nested" in l).index("["), title + 2)
+
+    def test_subs_follow_their_task(self):
+        _, out, _ = self.run_cli(["list", "--subs", "--sort", "id"])
+        self.assertLess(out.index("First task"), out.index("Done one"))
+        self.assertLess(out.index("Done one"), out.index("No sub-todos"))
+        self.assertLess(out.index("Second task"), out.index("Only one @dan"))
+
+    def test_subs_with_a_delegate_shows_all_of_the_matched_tasks_subtodos(self):
+        _, out, _ = self.run_cli(["list", "-d", "bob", "--subs"])
+        self.assertIn("Done one", out)
+        self.assertNotIn("Second task", out)
+
+    def test_without_subs_nothing_extra(self):
+        _, out, _ = self.run_cli(["list"])
+        self.assertNotIn("[", out)
+
+    def test_overdue_subtodo_date_is_red(self):
+        from tm import render
+        from tm.store import Store
+
+        detail = render.task_detail(Store(self.root).load_task(1), render.Theme(True))
+        self.assertIn("\033[1m\033[31m%2026-01-01\033[0m", detail)
+        self.assertIn("\033[1m\033[31m+P1\033[0m", detail)
+
+    def test_check_reports_bad_markers(self):
+        path = self.root / "tasks" / "0003-second-task.md"
+        path.write_text(path.read_text() + "- [ ] Broken +P7 %someday\n")
+        code, _, err = self.run_cli(["check"])
+        self.assertEqual(code, 1)
+        self.assertIn("+P7", err)
+        self.assertIn("%someday", err)
+
+    def test_template_resolves_relative_subtodo_dates(self):
+        self.use_editor(
+            [(r"^title: *$", "title: Templated"), (r"^## Sub-todos\n", "## Sub-todos\n\n- [ ] Ship it +P1 %+3d @bob\n")]
+        )
+        code, _, err = self.run_cli(["add"])
+        self.assertEqual(code, 0, err)
+        text = (self.root / "tasks" / "0004-templated.md").read_text()
+        self.assertRegex(text, r"- \[ \] Ship it \+P1 %\d{4}-\d\d-\d\d @bob")
+
+
+class DelegateParentTests(CliCase):
+    def setUp(self):
+        super().setUp()
+        self.run_cli(["add", "Launch"])
+        path = self.root / "tasks" / "0001-launch.md"
+        path.write_text(
+            path.read_text()
+            + "\n## Sub-todos\n\n-  [  ] sub task\n    - [  ] sub sub task @x\n    - [  ] sibling @y\n- [ ] Unrelated @y\n"
+        )
+
+    def test_the_parent_is_shown_above_the_match(self):
+        _, out, _ = self.run_cli(["list", "-d", "x"])
+        self.assertLess(out.index("[ ] sub task"), out.index("[ ] sub sub task @x"))
+        self.assertNotIn("sibling", out)
+        self.assertNotIn("Unrelated", out)
+
+    def test_the_parent_is_dimmed_and_the_match_is_not(self):
+        from tm import render
+        from tm.cli import with_parents  # the same helper the command uses
+        from tm.model import people
+        from tm.store import Store
+
+        task = Store(self.root).load_task(1)
+        subs = with_parents(task.subtodos, lambda s: "@x" in people(f"{s.text} {s.delegated_to}"))
+        table = render.task_table([task], render.Theme(True), subtodos={1: subs})
+        self.assertIn("\033[2m[ ] sub task\033[0m", table)
+        self.assertNotIn("\033[2m[ ] sub sub task", table)
+
+    def test_subs_shows_the_loosely_spaced_items(self):
+        _, out, _ = self.run_cli(["list", "--subs"])
+        for text in ("sub task", "sub sub task @x", "sibling @y", "Unrelated @y"):
+            self.assertIn(text, out)
+
+
+FOUR_LEVELS = """
+## Sub-todos
+
+- [ ] L1 Plan
+  - [ ] L2 Budget
+    - [ ] L3 Vendors +P1
+      - [ ] L4 Call vendor %{past} @bob
+      - [ ] L4 Sign contract +P1 %{future} @alice
+    - [x] L3 Done thing %{past} @bob
+  - [ ] L2 Venue %{today}
+- [ ] L1 Other @carol
+"""
+
+
+class DeepFilterTests(CliCase):
+    """Delegate, priority and date filters reach sub-todos four levels down."""
+
+    def setUp(self):
+        super().setUp()
+        import datetime
+
+        today = datetime.date.today()
+        self.past = (today - datetime.timedelta(days=5)).isoformat()
+        self.future = (today + datetime.timedelta(days=5)).isoformat()
+        self.run_cli(["add", "Launch", "-p", "2"])
+        self.run_cli(["add", "Hiring", "-p", "3", "--due", "-3d"])
+        self.run_cli(["add", "Quiet", "-p", "2"])
+        path = self.root / "tasks" / "0001-launch.md"
+        path.write_text(path.read_text() + FOUR_LEVELS.format(past=self.past, future=self.future, today=today.isoformat()))
+
+    def listed(self, *argv):
+        code, out, err = self.run_cli(["list", "--sort", "id", *argv])
+        self.assertEqual(code, 0, err)
+        return out
+
+    def assert_chain(self, out, *texts):
+        """``texts`` appear in this order, each on its own line."""
+        positions = [out.index(text) for text in texts]
+        self.assertEqual(positions, sorted(positions), out)
+
+    def test_overdue_reaches_level_four_and_the_task(self):
+        out = self.listed("--overdue")
+        self.assert_chain(out, "Launch", "L1 Plan", "L2 Budget", "L3 Vendors", "L4 Call vendor", "Hiring")
+        for absent in ("Sign contract", "Done thing", "Venue", "Quiet", "L1 Other"):
+            self.assertNotIn(absent, out)
+
+    def test_overdue_ignores_done_subtodos(self):
+        self.assertNotIn("L3 Done thing", self.listed("--overdue"))
+
+    def test_today_includes_today_and_overdue(self):
+        out = self.listed("--today")
+        self.assertIn("L4 Call vendor", out)
+        self.assertIn("L2 Venue", out)
+        self.assertNotIn("Sign contract", out)
+
+    def test_priority_finds_plus_p_subtodos_without_inheriting(self):
+        out = self.listed("-p", "P1")
+        self.assert_chain(out, "Launch", "L1 Plan", "L2 Budget", "L3 Vendors +P1", "L4 Sign contract +P1")
+        self.assertNotIn("Call vendor", out)  # its parent is +P1; it is not
+        self.assertNotIn("Hiring", out)
+
+    def test_priority_still_matches_tasks_by_their_own_priority(self):
+        out = self.listed("-p", "3")
+        self.assertIn("Hiring", out)
+        self.assertNotIn("Launch", out)
+
+    def test_delegate_reaches_level_four(self):
+        out = self.listed("-d", "bob")
+        self.assert_chain(out, "L1 Plan", "L2 Budget", "L3 Vendors", "L4 Call vendor", "L3 Done thing")
+
+    def test_combined_filters_must_all_hold_on_one_subtodo(self):
+        out = self.listed("-d", "bob", "--overdue")
+        self.assertIn("L4 Call vendor", out)
+        self.assertNotIn("Done thing", out)
+        out = self.listed("-p", "1", "-d", "alice")
+        self.assertIn("L4 Sign contract", out)
+        self.assertNotIn("Call vendor", out)
+        self.assertIn("No tasks match", self.run_cli(["list", "-d", "carol", "--overdue"])[2])
+
+    def test_level_four_is_indented_under_level_three(self):
+        lines = self.listed("--overdue").splitlines()
+        indent = {key: next(l for l in lines if key in l).index("[") for key in ("L1 Plan", "L2", "L3", "L4")}
+        self.assertEqual([indent["L2"] - indent["L1 Plan"], indent["L3"] - indent["L2"], indent["L4"] - indent["L3"]], [2, 2, 2])
+
+    def test_subs_shows_all_four_levels(self):
+        out = self.listed("--subs")
+        for text in ("L1 Plan", "L2 Budget", "L3 Vendors", "L4 Call vendor", "L4 Sign contract", "L2 Venue", "L1 Other"):
+            self.assertIn(text, out)
+
+    def test_check_validates_markers_at_level_four(self):
+        path = self.root / "tasks" / "0001-launch.md"
+        path.write_text(path.read_text() + "      - [ ] L4 Broken +P8 %whenever\n")
+        code, _, err = self.run_cli(["check"])
+        self.assertEqual(code, 1)
+        self.assertIn("+P8", err)
+        self.assertIn("%whenever", err)
+
+    def test_template_resolves_dates_at_level_four(self):
+        self.use_editor([
+            (r"^title: *$", "title: Deep template"),
+            (r"^## Sub-todos\n", "## Sub-todos\n\n- [ ] a\n  - [ ] b\n    - [ ] c\n      - [ ] d %+2d @bob\n"),
+        ])
+        self.assertEqual(self.run_cli(["add"])[0], 0)
+        text = (self.root / "tasks" / "0004-deep-template.md").read_text()
+        self.assertRegex(text, r"      - \[ \] d %\d{4}-\d\d-\d\d @bob")
