@@ -21,7 +21,7 @@ _CODES = {
     "cyan": "\033[36m",
 }
 
-_PRIORITY_STYLE = {"P1": ("bold", "red"), "P2": ("yellow",), "P3": ("dim",)}
+_PRIORITY_STYLE = {"P1": ("bold", "red"), "P2": ("yellow",), "P3": ("blue",)}
 _STATUS_STYLE = {
     "todo": (),
     "doing": ("cyan",),
@@ -57,8 +57,8 @@ class Theme:
     def status(self, value: str) -> str:
         return self(value, *_STATUS_STYLE.get(value, ()))
 
-    def due(self, value: str) -> str:
-        return self(value, *due_styles(value))
+    def due(self, value: str, *, closed: bool = False) -> str:
+        return self(value, *due_styles(value, closed=closed))
 
     def people(self, text: str) -> str:
         """Color every ``@handle`` in ``text``, leaving the rest alone."""
@@ -67,14 +67,18 @@ class Theme:
         return PERSON_RE.sub(lambda m: self(m.group(0), "magenta"), text)
 
 
-def due_styles(value: str) -> tuple[str, ...]:
-    if not value:
+def due_styles(value: str, *, closed: bool = False) -> tuple[str, ...]:
+    """Traffic light: overdue red, today yellow, later green. Finished work is
+    dimmed, so a date that passed after it was done never shows as late."""
+    if dates.to_date(value) is None:
         return ()
+    if closed:
+        return ("dim",)
     if dates.is_overdue(value):
         return ("bold", "red")
     if dates.is_today(value):
-        return ("yellow",)
-    return ()
+        return ("bold", "yellow")
+    return ("green",)
 
 
 def _cell(theme: Theme, value: str, width: int, styles: tuple[str, ...] = (), right: bool = False) -> str:
@@ -122,10 +126,10 @@ def task_table(
         "ID": lambda value: ("bold",),
         "PRI": lambda value: _PRIORITY_STYLE.get(value, ()),
         "STATUS": lambda value: _STATUS_STYLE.get(value, ()),
-        "DUE": due_styles,
     }
     title_column = " " * (sum(widths[:-1]) + 2 * (len(widths) - 1))
     for task, row in zip(tasks, rows):
+        styles_for["DUE"] = lambda value, closed=not task.is_open: due_styles(value, closed=closed)
         cells = [
             theme.people(value.ljust(width))
             if header == "WHO"
@@ -145,7 +149,7 @@ def _subtodo_line(sub: SubTodo, theme: Theme) -> str:
     if sub.priority:
         parts.append(theme(f"+{sub.priority}", *_PRIORITY_STYLE.get(sub.priority, ())))
     if sub.due:
-        parts.append(theme(f"%{sub.due}", *(() if sub.done else due_styles(sub.due))))
+        parts.append(theme(f"%{sub.due}", *due_styles(sub.due, closed=sub.done)))
     if sub.delegated_to:
         parts.append(theme.people(sub.delegated_to))
     return f"{box} {' '.join(parts)}"
@@ -160,7 +164,7 @@ def task_detail(task: Task, theme: Theme, *, goal: Goal | None = None) -> str:
         ("goal", f"{task.goal} ({goal.title})" if goal else task.goal),
         ("delegated to", theme.people(task.delegated_to)),
         ("start", task.start),
-        ("due", theme.due(task.due) + _due_hint(task)),
+        ("due", theme.due(task.due, closed=not task.is_open) + _due_hint(task)),
         ("done at", task.done_at),
     ]
     meta += [(key, value) for key, value in task.extra_fields.items()]

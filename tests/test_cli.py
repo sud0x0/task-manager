@@ -902,3 +902,72 @@ class DeepFilterTests(CliCase):
         self.assertEqual(self.run_cli(["add"])[0], 0)
         text = (self.root / "tasks" / "0004-deep-template.md").read_text()
         self.assertRegex(text, r"      - \[ \] d %\d{4}-\d\d-\d\d @bob")
+
+
+class ColourTests(unittest.TestCase):
+    """Every date, priority and person is coloured when color is on."""
+
+    RED, YELLOW, GREEN, BLUE, MAGENTA = "\033[1m\033[31m", "\033[33m", "\033[32m", "\033[34m", "\033[35m"
+
+    def setUp(self):
+        import datetime
+
+        from tm import render
+
+        self.render = render
+        self.theme = render.Theme(True)
+        today = datetime.date.today()
+        self.today = today.isoformat()
+        self.past = (today - datetime.timedelta(days=3)).isoformat()
+        self.future = (today + datetime.timedelta(days=3)).isoformat()
+
+    def test_dates_are_a_traffic_light(self):
+        styles = self.render.due_styles
+        self.assertEqual(styles(self.past), ("bold", "red"))
+        self.assertEqual(styles(self.today), ("bold", "yellow"))
+        self.assertEqual(styles(self.future), ("green",))
+
+    def test_finished_work_dims_its_date(self):
+        self.assertEqual(self.render.due_styles(self.past, closed=True), ("dim",))
+
+    def test_unset_or_invalid_dates_are_plain(self):
+        self.assertEqual(self.render.due_styles(""), ())
+        self.assertEqual(self.render.due_styles("soon"), ())
+
+    def test_every_priority_has_a_colour(self):
+        from tm.model import PRIORITIES
+
+        for priority in PRIORITIES:
+            with self.subTest(priority=priority):
+                self.assertNotEqual(self.theme.priority(priority), priority)
+                self.assertNotIn("\033[2m", self.theme.priority(priority))  # not merely dim
+
+    def test_subtodo_line_colours_priority_date_and_people(self):
+        from tm.model import SubTodo, Task
+
+        task = Task(id=1, title="x", subtodos=[SubTodo.parse(f"- [ ] Write it +P3 %{self.future} @bob & @carol")])
+        detail = self.render.task_detail(task, self.theme)
+        self.assertIn(f"{self.BLUE}+P3\033[0m", detail)
+        self.assertIn(f"{self.GREEN}%{self.future}\033[0m", detail)
+        self.assertIn(f"{self.MAGENTA}@bob\033[0m", detail)
+        self.assertIn(f"{self.MAGENTA}@carol\033[0m", detail)
+
+    def test_done_subtodo_date_is_dim_not_red(self):
+        from tm.model import SubTodo, Task
+
+        task = Task(id=1, title="x", subtodos=[SubTodo.parse(f"- [x] Finished %{self.past}")])
+        detail = self.render.task_detail(task, self.theme)
+        self.assertIn(f"\033[2m%{self.past}\033[0m", detail)
+        self.assertNotIn(f"{self.RED}%{self.past}", detail)
+
+    def test_table_due_column_respects_task_status(self):
+        from tm.model import Task
+
+        late = Task(id=1, title="late", due=self.past)
+        finished = Task(id=2, title="finished", due=self.past, status="done", done_at=self.today)
+        later = Task(id=3, title="later", due=self.future, priority="P3")
+        table = self.render.task_table([late, finished, later], self.theme)
+        self.assertIn(f"{self.RED}{self.past}", table)
+        self.assertIn(f"\033[2m{self.past}", table)
+        self.assertIn(f"{self.GREEN}{self.future}", table)
+        self.assertIn(f"{self.BLUE}P3", table)

@@ -145,6 +145,9 @@ like `fri`. Every command takes `-h`, and `--root PATH` overrides `TM_HOME`.
 - If `tm add` can't use what you wrote, your draft is kept and its path printed.
 - Ids are never reused.
 - `$TM_EDITOR`, then `$VISUAL`, then `$EDITOR`, then `vim`.
+- Colors: P1 red, P2 yellow, P3 blue. Dates are red when overdue, yellow when
+  due today, green otherwise, and dimmed once the work is done. `@people` are
+  magenta.
 
 ## Tests
 
