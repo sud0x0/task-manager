@@ -6,6 +6,7 @@ import argparse
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -323,12 +324,30 @@ def cmd_list(args, ctx: Ctx) -> int:
         theirs = {t.id: [(s, True) for s in t.subtodos] for t in tasks if t.subtodos}
     if tasks:
         tasks.sort(key=_sort_key(args.sort))
-        ctx.say(render.task_table(tasks, ctx.theme, show_goal=not args.goal, subtodos=theirs))
+        ctx.say(
+            render.task_table(
+                tasks,
+                ctx.theme,
+                show_goal=not args.goal,
+                subtodos=theirs,
+                rule=_rule_char(ctx.out),
+                max_width=shutil.get_terminal_size().columns,
+            )
+        )
     else:
         ctx.warn("No tasks match.")
     if broken:
         ctx.warn(f"warning: {len(broken)} task file(s) have problems; run 'tm check'")
     return 0
+
+
+def _rule_char(stream: TextIO) -> str:
+    """A box-drawing line where the output can show one, else plain dashes."""
+    try:
+        "─".encode(getattr(stream, "encoding", None) or "utf-8")
+    except (UnicodeEncodeError, LookupError):
+        return "-"
+    return "─"
 
 
 def _row_checks(args) -> list[tuple]:

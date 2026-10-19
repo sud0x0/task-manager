@@ -971,3 +971,62 @@ class ColourTests(unittest.TestCase):
         self.assertIn(f"\033[2m{self.past}", table)
         self.assertIn(f"{self.GREEN}{self.future}", table)
         self.assertIn(f"{self.BLUE}P3", table)
+
+
+class SeparatorTests(CliCase):
+    def setUp(self):
+        super().setUp()
+        os.environ["COLUMNS"] = "200"
+        self.run_cli(["add", "First", "-p", "1"])
+        self.run_cli(["add", "Second"])
+        self.run_cli(["add", "Third", "-p", "3"])
+        for task_id, body in ((1, "- [ ] one @bob\n"), (3, "- [ ] three\n  - [ ] three nested @bob\n")):
+            path = next((self.root / "tasks").glob(f"{task_id:04d}-*.md"))
+            path.write_text(path.read_text() + f"\n## Sub-todos\n\n{body}")
+
+    def rules(self, out):
+        return [i for i, line in enumerate(out.splitlines()) if line and set(line) == {"─"}]
+
+    def test_one_rule_between_each_task_when_subtodos_are_shown(self):
+        _, out, _ = self.run_cli(["list", "--subs"])
+        lines = out.splitlines()
+        rules = self.rules(out)
+        self.assertEqual(len(rules), 2)
+        self.assertNotEqual(rules[0], 1)  # never straight under the header
+        self.assertNotEqual(rules[-1], len(lines) - 1)  # never last
+        self.assertIn("First", lines[rules[0] - 2])
+        self.assertIn("Second", lines[rules[0] + 1])
+
+    def test_no_rules_when_no_subtodos_are_shown(self):
+        _, out, _ = self.run_cli(["list"])
+        self.assertEqual(self.rules(out), [])
+
+    def test_filtered_views_with_subtodos_get_rules(self):
+        _, out, _ = self.run_cli(["list", "-d", "bob"])
+        self.assertEqual(len(self.rules(out)), 1)  # First | Third
+
+    def test_rule_matches_the_widest_line(self):
+        _, out, _ = self.run_cli(["list", "--subs"])
+        widest = max(len(line) for line in out.splitlines() if set(line) != {"─"})
+        self.assertEqual(len(out.splitlines()[self.rules(out)[0]]), widest)
+
+    def test_rule_never_wider_than_the_terminal(self):
+        os.environ["COLUMNS"] = "30"
+        _, out, _ = self.run_cli(["list", "--subs"])
+        self.assertEqual(len(out.splitlines()[self.rules(out)[0]]), 30)
+
+    def test_rule_is_dim(self):
+        from tm import render
+        from tm.store import Store
+
+        store = Store(self.root)
+        tasks = [store.load_task(1), store.load_task(2)]
+        table = render.task_table(tasks, render.Theme(True), subtodos={1: [(tasks[0].subtodos[0], True)]})
+        self.assertRegex(table, "\033\\[2m─+\033\\[0m")
+
+    def test_plain_dashes_when_the_output_cannot_show_box_drawing(self):
+        class Latin1(io.StringIO):
+            encoding = "latin-1"
+
+        self.assertEqual(cli._rule_char(Latin1()), "-")
+        self.assertEqual(cli._rule_char(io.StringIO()), "─")

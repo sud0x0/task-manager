@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from typing import TextIO
 
@@ -21,6 +22,7 @@ _CODES = {
     "cyan": "\033[36m",
 }
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 _PRIORITY_STYLE = {"P1": ("bold", "red"), "P2": ("yellow",), "P3": ("blue",)}
 _STATUS_STYLE = {
     "todo": (),
@@ -98,12 +100,16 @@ def task_table(
     *,
     show_goal: bool = True,
     subtodos: dict[int, list[tuple[SubTodo, bool]]] | None = None,
+    rule: str = "─",
+    max_width: int | None = None,
 ) -> str:
     """The `tm list` table: fixed columns, title last so it can run long.
 
     ``subtodos`` maps a task id to ``(sub-todo, matched)`` pairs to print
     under its row, lined up with the title column. Unmatched ones are parents
-    shown for context, and are dimmed.
+    shown for context, and are dimmed. When any are shown, a dim line made of
+    ``rule`` separates the tasks; it is as wide as the table, but no wider
+    than ``max_width`` so it never wraps.
     """
     if not tasks:
         return ""
@@ -128,6 +134,7 @@ def task_table(
         "STATUS": lambda value: _STATUS_STYLE.get(value, ()),
     }
     title_column = " " * (sum(widths[:-1]) + 2 * (len(widths) - 1))
+    groups: list[list[str]] = []
     for task, row in zip(tasks, rows):
         styles_for["DUE"] = lambda value, closed=not task.is_open: due_styles(value, closed=closed)
         cells = [
@@ -136,10 +143,19 @@ def task_table(
             else _cell(theme, value, width, styles_for.get(header, lambda _: ())(value), right=header == "ID")
             for header, value, width in zip(headers, row, widths)
         ]
-        lines.append("  ".join(cells).rstrip())
+        group = ["  ".join(cells).rstrip()]
         for sub, matched in (subtodos or {}).get(task.id, []):
             line = _subtodo_line(sub, theme) if matched else theme(_subtodo_line(sub, Theme(False)), "dim")
-            lines.append(f"{title_column}{'  ' * sub.depth}{line}")
+            group.append(f"{title_column}{'  ' * sub.depth}{line}")
+        groups.append(group)
+
+    if any(len(group) > 1 for group in groups):
+        width = max(len(_ANSI_RE.sub("", line)) for line in [lines[0], *(l for g in groups for l in g)])
+        separator = theme(rule * min(width, max_width or width), "dim")
+        for index, group in enumerate(groups):
+            lines.extend(([separator] if index else []) + group)
+    else:
+        lines.extend(line for group in groups for line in group)
     return "\n".join(lines)
 
 
