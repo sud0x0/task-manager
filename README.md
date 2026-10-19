@@ -6,6 +6,8 @@ whenever that's quicker than the CLI.
 
 Standard library only, no dependencies. Written for Python 3.9+.
 
+![tm list --subs and tm list -d sam: tasks with their sub-todos, colored by priority, date and person](docs/screenshot.svg)
+
 ## Install
 
 1. Clone the repo into `~/.task-manager`:

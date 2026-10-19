@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="914" height="524" viewBox="0 0 914 524" role="img" aria-label="tm list --subs and tm list -d sam in a terminal">
+<title>tm list --subs and tm list -d sam</title>
+<defs><clipPath id="window"><rect width="914" height="524" rx="10"/></clipPath></defs>
+<g clip-path="url(#window)"><rect width="914" height="524" fill="#1e1e2e"/>
+<rect width="914" height="34" fill="#181825"/></g>
+<rect x="0.5" y="0.5" width="913" height="523" rx="10" fill="none" stroke="#313244"/>
+<circle cx="20" cy="17.0" r="6" fill="#ff5f57"/>
+<circle cx="40" cy="17.0" r="6" fill="#febc2e"/>
+<circle cx="60" cy="17.0" r="6" fill="#28c840"/>
+<text x="457.0" y="21.0" text-anchor="middle" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace" font-size="12" fill="#6c7086">~/tasks</text>
+<g font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace" font-size="14" fill="#cdd6f4" xml:space="preserve">
+<text x="20.0" y="64.0" textLength="8.4" lengthAdjust="spacing" fill="#a6e3a1" font-weight="700">$</text>
+<text x="36.8" y="64.0" textLength="16.8" lengthAdjust="spacing" font-weight="700">tm</text>
+<text x="62.0" y="64.0" textLength="33.6" lengthAdjust="spacing" font-weight="700">list</text>
+<text x="104.0" y="64.0" textLength="50.4" lengthAdjust="spacing" font-weight="700">--subs</text>
+<text x="20.0" y="83.0" textLength="16.8" lengthAdjust="spacing" fill-opacity="0.5">ID</text>
+<text x="53.6" y="83.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">PRI</text>
+<text x="95.6" y="83.0" textLength="50.4" lengthAdjust="spacing" fill-opacity="0.5">STATUS</text>
+<text x="162.8" y="83.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">DUE</text>
+<text x="263.6" y="83.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">SUB</text>
+<text x="305.6" y="83.0" textLength="33.6" lengthAdjust="spacing" fill-opacity="0.5">GOAL</text>
+<text x="364.4" y="83.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">WHO</text>
+<text x="498.8" y="83.0" textLength="42.0" lengthAdjust="spacing" fill-opacity="0.5">TITLE</text>
+<text x="28.4" y="102.0" textLength="8.4" lengthAdjust="spacing" font-weight="700">3</text>
+<text x="53.6" y="102.0" textLength="16.8" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">P1</text>
+<text x="95.6" y="102.0" textLength="33.6" lengthAdjust="spacing">todo</text>
+<text x="162.8" y="102.0" textLength="84.0" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">2026-10-18</text>
+<text x="305.6" y="102.0" textLength="33.6" lengthAdjust="spacing">home</text>
+<text x="498.8" y="102.0" textLength="42.0" lengthAdjust="spacing">Renew</text>
+<text x="549.2" y="102.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="582.8" y="102.0" textLength="67.2" lengthAdjust="spacing">passport</text>
+<line x1="20.0" y1="116.5" x2="893.6" y2="116.5" stroke="#313244" stroke-width="1"/>
+<text x="28.4" y="140.0" textLength="8.4" lengthAdjust="spacing" font-weight="700">1</text>
+<text x="53.6" y="140.0" textLength="16.8" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">P1</text>
+<text x="95.6" y="140.0" textLength="42.0" lengthAdjust="spacing" fill="#94e2d5">doing</text>
+<text x="162.8" y="140.0" textLength="84.0" lengthAdjust="spacing" fill="#a6e3a1">2026-10-24</text>
+<text x="263.6" y="140.0" textLength="25.2" lengthAdjust="spacing">1/4</text>
+<text x="305.6" y="140.0" textLength="33.6" lengthAdjust="spacing">beta</text>
+<text x="498.8" y="140.0" textLength="33.6" lengthAdjust="spacing">Ship</text>
+<text x="540.8" y="140.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="574.4" y="140.0" textLength="33.6" lengthAdjust="spacing">beta</text>
+<text x="498.8" y="159.0" textLength="25.2" lengthAdjust="spacing" fill="#a6e3a1">[x]</text>
+<text x="532.4" y="159.0" textLength="50.4" lengthAdjust="spacing">Freeze</text>
+<text x="591.2" y="159.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="624.8" y="159.0" textLength="58.8" lengthAdjust="spacing">feature</text>
+<text x="692.0" y="159.0" textLength="33.6" lengthAdjust="spacing">list</text>
+<text x="734.0" y="159.0" textLength="42.0" lengthAdjust="spacing" fill="#cba6f7">@alex</text>
+<text x="498.8" y="178.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="515.6" y="178.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="532.4" y="178.0" textLength="25.2" lengthAdjust="spacing">Fix</text>
+<text x="566.0" y="178.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="599.6" y="178.0" textLength="42.0" lengthAdjust="spacing">login</text>
+<text x="650.0" y="178.0" textLength="25.2" lengthAdjust="spacing">bug</text>
+<text x="683.6" y="178.0" textLength="25.2" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">+P1</text>
+<text x="717.2" y="178.0" textLength="92.4" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">%2026-10-17</text>
+<text x="818.0" y="178.0" textLength="33.6" lengthAdjust="spacing" fill="#cba6f7">@sam</text>
+<text x="498.8" y="197.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="515.6" y="197.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="532.4" y="197.0" textLength="42.0" lengthAdjust="spacing">Write</text>
+<text x="582.8" y="197.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="616.4" y="197.0" textLength="58.8" lengthAdjust="spacing">release</text>
+<text x="683.6" y="197.0" textLength="42.0" lengthAdjust="spacing">notes</text>
+<text x="734.0" y="197.0" textLength="92.4" lengthAdjust="spacing" fill="#a6e3a1">%2026-10-23</text>
+<text x="834.8" y="197.0" textLength="42.0" lengthAdjust="spacing" fill="#cba6f7">@alex</text>
+<text x="515.6" y="216.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="532.4" y="216.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="549.2" y="216.0" textLength="33.6" lengthAdjust="spacing">Take</text>
+<text x="591.2" y="216.0" textLength="25.2" lengthAdjust="spacing">new</text>
+<text x="624.8" y="216.0" textLength="92.4" lengthAdjust="spacing">screenshots</text>
+<text x="725.6" y="216.0" textLength="25.2" lengthAdjust="spacing" fill="#89b4fa">+P3</text>
+<text x="759.2" y="216.0" textLength="92.4" lengthAdjust="spacing" fill="#a6e3a1">%2026-10-22</text>
+<text x="860.0" y="216.0" textLength="33.6" lengthAdjust="spacing" fill="#cba6f7">@sam</text>
+<line x1="20.0" y1="230.5" x2="893.6" y2="230.5" stroke="#313244" stroke-width="1"/>
+<text x="28.4" y="254.0" textLength="8.4" lengthAdjust="spacing" font-weight="700">2</text>
+<text x="53.6" y="254.0" textLength="16.8" lengthAdjust="spacing" fill="#f9e2af">P2</text>
+<text x="95.6" y="254.0" textLength="33.6" lengthAdjust="spacing">todo</text>
+<text x="263.6" y="254.0" textLength="25.2" lengthAdjust="spacing">0/2</text>
+<text x="305.6" y="254.0" textLength="33.6" lengthAdjust="spacing">beta</text>
+<text x="364.4" y="254.0" textLength="50.4" lengthAdjust="spacing" fill="#cba6f7">@priya</text>
+<text x="423.2" y="254.0" textLength="8.4" lengthAdjust="spacing">&amp;</text>
+<text x="440.0" y="254.0" textLength="42.0" lengthAdjust="spacing" fill="#cba6f7">@alex</text>
+<text x="498.8" y="254.0" textLength="33.6" lengthAdjust="spacing">Plan</text>
+<text x="540.8" y="254.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="574.4" y="254.0" textLength="33.6" lengthAdjust="spacing">team</text>
+<text x="616.4" y="254.0" textLength="58.8" lengthAdjust="spacing">offsite</text>
+<text x="498.8" y="273.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="515.6" y="273.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="532.4" y="273.0" textLength="33.6" lengthAdjust="spacing">Book</text>
+<text x="574.4" y="273.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="608.0" y="273.0" textLength="42.0" lengthAdjust="spacing">venue</text>
+<text x="658.4" y="273.0" textLength="25.2" lengthAdjust="spacing" fill="#f9e2af">+P2</text>
+<text x="692.0" y="273.0" textLength="92.4" lengthAdjust="spacing" fill="#f9e2af" font-weight="700">%2026-10-20</text>
+<text x="498.8" y="292.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="515.6" y="292.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="532.4" y="292.0" textLength="33.6" lengthAdjust="spacing">Send</text>
+<text x="574.4" y="292.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="608.0" y="292.0" textLength="58.8" lengthAdjust="spacing">invites</text>
+<text x="675.2" y="292.0" textLength="50.4" lengthAdjust="spacing" fill="#cba6f7">@priya</text>
+<line x1="20.0" y1="306.5" x2="893.6" y2="306.5" stroke="#313244" stroke-width="1"/>
+<text x="28.4" y="330.0" textLength="8.4" lengthAdjust="spacing" font-weight="700">4</text>
+<text x="53.6" y="330.0" textLength="16.8" lengthAdjust="spacing" fill="#89b4fa">P3</text>
+<text x="95.6" y="330.0" textLength="42.0" lengthAdjust="spacing" fill="#94e2d5">doing</text>
+<text x="263.6" y="330.0" textLength="25.2" lengthAdjust="spacing">1/2</text>
+<text x="305.6" y="330.0" textLength="42.0" lengthAdjust="spacing">learn</text>
+<text x="498.8" y="330.0" textLength="42.0" lengthAdjust="spacing">Learn</text>
+<text x="549.2" y="330.0" textLength="33.6" lengthAdjust="spacing">Rust</text>
+<text x="498.8" y="349.0" textLength="25.2" lengthAdjust="spacing" fill="#a6e3a1">[x]</text>
+<text x="532.4" y="349.0" textLength="50.4" lengthAdjust="spacing">Finish</text>
+<text x="591.2" y="349.0" textLength="58.8" lengthAdjust="spacing">chapter</text>
+<text x="658.4" y="349.0" textLength="8.4" lengthAdjust="spacing">3</text>
+<text x="498.8" y="368.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="515.6" y="368.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="532.4" y="368.0" textLength="50.4" lengthAdjust="spacing">Finish</text>
+<text x="591.2" y="368.0" textLength="58.8" lengthAdjust="spacing">chapter</text>
+<text x="658.4" y="368.0" textLength="8.4" lengthAdjust="spacing">4</text>
+<text x="675.2" y="368.0" textLength="92.4" lengthAdjust="spacing" fill="#a6e3a1">%2026-11-02</text>
+<text x="20.0" y="406.0" textLength="8.4" lengthAdjust="spacing" fill="#a6e3a1" font-weight="700">$</text>
+<text x="36.8" y="406.0" textLength="16.8" lengthAdjust="spacing" font-weight="700">tm</text>
+<text x="62.0" y="406.0" textLength="33.6" lengthAdjust="spacing" font-weight="700">list</text>
+<text x="104.0" y="406.0" textLength="16.8" lengthAdjust="spacing" font-weight="700">-d</text>
+<text x="129.2" y="406.0" textLength="25.2" lengthAdjust="spacing" font-weight="700">sam</text>
+<text x="20.0" y="425.0" textLength="16.8" lengthAdjust="spacing" fill-opacity="0.5">ID</text>
+<text x="53.6" y="425.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">PRI</text>
+<text x="95.6" y="425.0" textLength="50.4" lengthAdjust="spacing" fill-opacity="0.5">STATUS</text>
+<text x="162.8" y="425.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">DUE</text>
+<text x="263.6" y="425.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">SUB</text>
+<text x="305.6" y="425.0" textLength="33.6" lengthAdjust="spacing" fill-opacity="0.5">GOAL</text>
+<text x="356.0" y="425.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">WHO</text>
+<text x="398.0" y="425.0" textLength="42.0" lengthAdjust="spacing" fill-opacity="0.5">TITLE</text>
+<text x="28.4" y="444.0" textLength="8.4" lengthAdjust="spacing" font-weight="700">1</text>
+<text x="53.6" y="444.0" textLength="16.8" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">P1</text>
+<text x="95.6" y="444.0" textLength="42.0" lengthAdjust="spacing" fill="#94e2d5">doing</text>
+<text x="162.8" y="444.0" textLength="84.0" lengthAdjust="spacing" fill="#a6e3a1">2026-10-24</text>
+<text x="263.6" y="444.0" textLength="25.2" lengthAdjust="spacing">1/4</text>
+<text x="305.6" y="444.0" textLength="33.6" lengthAdjust="spacing">beta</text>
+<text x="398.0" y="444.0" textLength="33.6" lengthAdjust="spacing">Ship</text>
+<text x="440.0" y="444.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="473.6" y="444.0" textLength="33.6" lengthAdjust="spacing">beta</text>
+<text x="398.0" y="463.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="414.8" y="463.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="431.6" y="463.0" textLength="25.2" lengthAdjust="spacing">Fix</text>
+<text x="465.2" y="463.0" textLength="25.2" lengthAdjust="spacing">the</text>
+<text x="498.8" y="463.0" textLength="42.0" lengthAdjust="spacing">login</text>
+<text x="549.2" y="463.0" textLength="25.2" lengthAdjust="spacing">bug</text>
+<text x="582.8" y="463.0" textLength="25.2" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">+P1</text>
+<text x="616.4" y="463.0" textLength="92.4" lengthAdjust="spacing" fill="#f38ba8" font-weight="700">%2026-10-17</text>
+<text x="717.2" y="463.0" textLength="33.6" lengthAdjust="spacing" fill="#cba6f7">@sam</text>
+<text x="398.0" y="482.0" textLength="8.4" lengthAdjust="spacing" fill-opacity="0.5">[</text>
+<text x="414.8" y="482.0" textLength="8.4" lengthAdjust="spacing" fill-opacity="0.5">]</text>
+<text x="431.6" y="482.0" textLength="42.0" lengthAdjust="spacing" fill-opacity="0.5">Write</text>
+<text x="482.0" y="482.0" textLength="25.2" lengthAdjust="spacing" fill-opacity="0.5">the</text>
+<text x="515.6" y="482.0" textLength="58.8" lengthAdjust="spacing" fill-opacity="0.5">release</text>
+<text x="582.8" y="482.0" textLength="42.0" lengthAdjust="spacing" fill-opacity="0.5">notes</text>
+<text x="633.2" y="482.0" textLength="92.4" lengthAdjust="spacing" fill-opacity="0.5">%2026-10-23</text>
+<text x="734.0" y="482.0" textLength="42.0" lengthAdjust="spacing" fill-opacity="0.5">@alex</text>
+<text x="414.8" y="501.0" textLength="8.4" lengthAdjust="spacing">[</text>
+<text x="431.6" y="501.0" textLength="8.4" lengthAdjust="spacing">]</text>
+<text x="448.4" y="501.0" textLength="33.6" lengthAdjust="spacing">Take</text>
+<text x="490.4" y="501.0" textLength="25.2" lengthAdjust="spacing">new</text>
+<text x="524.0" y="501.0" textLength="92.4" lengthAdjust="spacing">screenshots</text>
+<text x="624.8" y="501.0" textLength="25.2" lengthAdjust="spacing" fill="#89b4fa">+P3</text>
+<text x="658.4" y="501.0" textLength="92.4" lengthAdjust="spacing" fill="#a6e3a1">%2026-10-22</text>
+<text x="759.2" y="501.0" textLength="33.6" lengthAdjust="spacing" fill="#cba6f7">@sam</text>
+</g>
+</svg>
