@@ -6,6 +6,11 @@ whenever that's quicker than the CLI.
 
 Standard library only, no dependencies. Written for Python 3.9+.
 
+> [!NOTE]
+> Tested with vim on macOS and Linux. Other terminal editors such as nano or
+> emacs should work too. GUI editors need their wait flag, or `tm` won't see
+> your changes: `export EDITOR="code --wait"`. Windows isn't supported yet.
+
 ![tm list --subs and tm list -d sam: tasks with their sub-todos, colored by priority, date and person](docs/screenshot.svg)
 
 ## Install
